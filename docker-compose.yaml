@@ -1,0 +1,10 @@
+name: items-monitoring
+services:
+  monitor-service:
+    image: monitor-service
+    build:
+      context: ./src/items_monitoring
+    volumes:
+      - ./runs:/app/runs
+      - ./data:/app/data
+      - ./models:/app/models
