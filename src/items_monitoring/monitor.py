@@ -27,9 +27,6 @@ def parse_arguments():
     parser.add_argument("--source", "-s", type=str, required=True, help="The camera footage to monitor")
 
     # Output arguments
-    parser.add_argument(
-        "--output", "-o", type=str, default="runs/detect", help="Output directory for results (default: runs/detect)"
-    )
     parser.add_argument("--save-txt", action="store_true", help="Save results as txt files")
     parser.add_argument("--save-conf", action="store_true", help="Save confidence scores in txt files")
     parser.add_argument("--save-crop", action="store_true", help="Save cropped detection images")
@@ -53,8 +50,8 @@ def parse_arguments():
 
     # Miscellaneous
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
-    parser.add_argument("--project", type=str, default="runs", help="Project directory (default: runs)")
-    parser.add_argument("--name", type=str, default="detect", help="Experiment name (default: detect)")
+    parser.add_argument("--project", type=str, help="Project directory")
+    parser.add_argument("--name", type=str, help="Experiment name")
     parser.add_argument("--exist-ok", action="store_true", help="Existing project/name ok, do not increment")
 
     return parser.parse_args()
@@ -81,55 +78,62 @@ def resize_roi_to_orig_size(roi, fx, fy):
 
 def run_monitor(model, source, args):
     """Run inference using Ultralytics YOLO."""
-    print("Monitoring on video...")
     cap = cv.VideoCapture(source)
+
+    fourcc = cv.VideoWriter_fourcc(*"XVID")
+    outfile = os.environ.get("OUTPUT_DIR", "runs") + "/output.mp4"
+    ow, oh = int(cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv.CAP_PROP_FPS)
+    wrt = cv.VideoWriter(outfile, fourcc, fps, (ow, oh))
 
     annotator = sv.BoxAnnotator()
 
     fy = 640 / ROI_HEIGHT
     fx = 640 / ROI_WIDTH
 
-    while cap.isOpened():
-        ret, frame = cap.read()
+    try:
+        while cap.isOpened():
+            ret, frame = cap.read()
 
-        if ret:
-            roi = frame.copy()[START_Y : START_Y + ROI_HEIGHT, START_X : START_X + ROI_WIDTH]
-            roi = cv.resize(roi, None, None, fx, fy, cv.INTER_LINEAR)
+            if ret:
+                roi = frame.copy()[START_Y : START_Y + ROI_HEIGHT, START_X : START_X + ROI_WIDTH]
+                roi = cv.resize(roi, None, None, fx, fy, cv.INTER_LINEAR)
 
-            results = model.track(
-                source=roi,
-                persist=args.persist,
-                tracker=args.tracker,
-                conf=args.conf_thres,
-                iou=args.iou_thres,
-                max_det=args.max_det,
-                classes=args.classes,
-                imgsz=args.imgsz,
-                device=args.device,
-                save=not args.nosave,
-                save_txt=args.save_txt,
-                save_conf=args.save_conf,
-                save_crop=args.save_crop,
-                show=args.view_img,
-                project=args.project,
-                name=args.name,
-                exist_ok=args.exist_ok,
-                line_width=args.line_thickness,
-                show_labels=not args.hide_labels,
-                show_conf=not args.hide_conf,
-                verbose=args.verbose,
-            )[0]
+                results = model.track(
+                    source=roi,
+                    persist=args.persist,
+                    tracker=args.tracker,
+                    conf=args.conf_thres,
+                    iou=args.iou_thres,
+                    max_det=args.max_det,
+                    classes=args.classes,
+                    imgsz=args.imgsz,
+                    device=args.device,
+                    save=not args.nosave,
+                    save_txt=args.save_txt,
+                    save_conf=args.save_conf,
+                    save_crop=args.save_crop,
+                    show=args.view_img,
+                    project=args.project,
+                    name=args.name,
+                    exist_ok=args.exist_ok,
+                    line_width=args.line_thickness,
+                    show_labels=not args.hide_labels,
+                    show_conf=not args.hide_conf,
+                    verbose=args.verbose,
+                )[0]
 
-            detections = sv.Detections.from_ultralytics(results)
-            annotated_roi = annotator.annotate(roi, detections)
-            annotated_roi = resize_roi_to_orig_size(annotated_roi, fx, fy)
-            frame[START_Y : START_Y + ROI_HEIGHT, START_X : START_X + ROI_WIDTH] = annotated_roi
-            cv.imshow("Monitoring", frame)
-
-            if cv.waitKey(1) == ord("q"):
-                break
-
-    cv.destroyAllWindows()
+                detections = sv.Detections.from_ultralytics(results)
+                annotated_roi = annotator.annotate(roi, detections)
+                annotated_roi = resize_roi_to_orig_size(annotated_roi, fx, fy)
+                cv.rectangle(annotated_roi, (0, 0), (ROI_WIDTH, ROI_HEIGHT), (0, 0, 255), 2)
+                frame[START_Y : START_Y + ROI_HEIGHT, START_X : START_X + ROI_WIDTH] = annotated_roi
+                wrt.write(frame)
+    except KeyboardInterrupt:
+        print("Process interrupted by user.")
+    finally:
+        cap.release()
+        wrt.release()
 
 
 def validate_inputs(args):

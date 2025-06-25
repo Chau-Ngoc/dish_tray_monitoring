@@ -8,3 +8,26 @@ services:
       - ./runs:/app/runs
       - ./data:/app/data
       - ./models:/app/models
+    environment:
+      OUTPUT_DIR: /app/runs
+  feedback-service:
+    image: feedback-service
+    ports:
+      - '5000:5000'
+    build:
+      context: ./src/feedback
+    depends_on:
+      - mongo
+  mongo:
+    image: mongo:8.0-noble
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+      - mongo-configdb:/data/configdb
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      DATABASE_NAME: feedback_db
+volumes:
+  mongo-data:
+  mongo-configdb:

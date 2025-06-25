@@ -33,7 +33,7 @@ def parse_arguments():
     parser.add_argument("--weight-decay", type=float, default=0.0005, help="Weight decay for optimizer")
 
     # Output and project settings
-    parser.add_argument("--project", type=str, default="runs/train", help="Project directory to save results")
+    parser.add_argument("--project", type=str, default="runs", help="Project directory to save results")
 
     parser.add_argument("--name", type=str, help="Experiment name")
 
