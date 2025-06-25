@@ -41,6 +41,8 @@ To train a custom YOLO model on your dataset:
    ```
    The `data.yaml` file should follow [Ultralytics YOLO format](https://docs.ultralytics.com/datasets/detect/#ultralytics-yolo-format)
 
+   I have included a sample dataset in the `data/` directory. You can use it or create your own.
+
 2. Start the training process:
    ```
    docker compose run --rm monitor-service train.py --model <model_name> --data <path_to_data.yaml> --epochs 10 --batch-size 16
@@ -58,7 +60,7 @@ To train a custom YOLO model on your dataset:
 
 ## Track the dishes and trays in videos
 
-To track objects in an input video:
+I have provided a sample video for you to play with in the `data/` directory. To track objects in an input video:
 
 1. Ensure you have a trained model inside the `model/` directory or use a pre-trained YOLO model.
 
