@@ -1,7 +1,7 @@
 import os
 from typing import TypedDict
 
-from flask import Flask
+from flask import Flask, g
 from flask_restx import Api, Resource, reqparse
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
@@ -9,16 +9,31 @@ from pymongo.errors import ConnectionFailure
 MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://mongo:27017")
 DATABASE_NAME = os.environ.get("DATABASE_NAME", "feedback_db")
 
-mongoclient = MongoClient(f"{MONGODB_URI}/{DATABASE_NAME}")
 
-try:
-    mongoclient.admin.command("ping")
-    print("Successfully connected to MongoDB!")
-except ConnectionFailure:
-    print("MongoDB not available!!!")
+def get_db():
+    if "db" not in g:
+        g.mongoclient = MongoClient(f"{MONGODB_URI}/{DATABASE_NAME}")
+
+        try:
+            g.mongoclient.admin.command("ping")
+            print("Successfully connected to MongoDB!")
+        except ConnectionFailure:
+            print("MongoDB not available!!!")
+
+        g.db = g.mongoclient[DATABASE_NAME]
+
+    return g.db
+
 
 app = Flask(__name__)
 api = Api(app)
+
+
+@app.teardown_appcontext
+def close_db_connection(exc):
+    mongoclient = g.pop("mongoclient", None)
+    if mongoclient is not None:
+        mongoclient.close()
 
 
 class Detection(TypedDict):
@@ -71,7 +86,7 @@ class Feedback(Resource):
     def post(self):
         args = feedback_parser.parse_args()
 
-        collection = mongoclient[DATABASE_NAME].feedback
+        collection = get_db().feedback
         result = collection.insert_one(args)
 
         return {"message": "Feedback received successfully", "_id": str(result.inserted_id)}, 201
